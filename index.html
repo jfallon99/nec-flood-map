@@ -3,83 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Flood Line Was Wrong — NEC Sea Level Correction</title>
+  <title>The Flood Line Was Wrong — NEC</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; font-family: "Inter", "Helvetica Neue", sans-serif; background: #0a0a0a; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: "Inter", sans-serif; background: #08090a; }
     #map { width: 100%; height: 100vh; }
 
-    /* ---- Loader ---- */
+    /* ---- LOADER ---- */
     #loader {
       position: fixed; inset: 0; z-index: 9999;
-      background: #0a0a0a;
+      background: #08090a;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transition: opacity .5s ease;
+      gap: 0;
+      transition: opacity .6s ease;
     }
     #loader.hidden { opacity: 0; pointer-events: none; }
-    .load-title { color: #fff; font-size: 1.5rem; font-weight: 700; letter-spacing: .04em; margin-bottom: .5rem; }
-    .load-sub { color: #888; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2rem; }
-    .load-bar-wrap { width: 200px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
-    .load-bar { height: 100%; width: 0%; background: #1c64f2; border-radius: 2px; transition: width .4s ease; }
-    .load-text { color: #555; font-size: .75rem; margin-top: .75rem; letter-spacing: .04em; }
+    .load-eyebrow {
+      color: #e03535; font-size: .7rem; font-weight: 700;
+      letter-spacing: .18em; text-transform: uppercase; margin-bottom: 14px;
+    }
+    .load-title {
+      color: #ffffff; font-size: clamp(1.6rem, 4vw, 2.6rem);
+      font-weight: 900; letter-spacing: -.02em; line-height: 1.1;
+      text-align: center; max-width: 640px; margin-bottom: 12px;
+    }
+    .load-body {
+      color: #777; font-size: .9rem; text-align: center;
+      max-width: 480px; line-height: 1.6; margin-bottom: 36px;
+    }
+    .load-body em { color: #bbb; font-style: normal; }
+    .load-bar-wrap { width: 220px; height: 2px; background: #1e1e1e; border-radius: 2px; overflow: hidden; }
+    .load-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #c0392b, #e74c3c); border-radius: 2px; transition: width .5s ease; }
+    .load-status { color: #444; font-size: .7rem; margin-top: 10px; letter-spacing: .06em; }
 
-    /* ---- Labels (city markers) ---- */
+    /* ---- CITY LABELS ---- */
     .city-label {
-      background: rgba(10,10,10,.75);
-      color: #fff; font-size: 11px; font-weight: 600;
-      padding: 3px 7px; border-radius: 3px;
-      border: 1px solid rgba(255,255,255,.15);
+      color: rgba(255,255,255,.6); font-size: 10px; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
       white-space: nowrap; pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,.8);
     }
 
-    /* ---- Legend chips ---- */
-    #legend {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      z-index: 800; display: flex; gap: 10px; align-items: center;
-      background: rgba(10,10,10,.82); backdrop-filter: blur(6px);
-      padding: 8px 16px; border-radius: 30px;
-      border: 1px solid rgba(255,255,255,.1);
-    }
-    .chip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ccc; letter-spacing: .03em; }
-    .chip-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
-    .chip-div { width: 1px; height: 20px; background: rgba(255,255,255,.15); }
-
-    /* ---- Slider handle ---- */
+    /* ---- SLIDER ---- */
     #slider-handle {
-      position: fixed; top: 0; bottom: 0;
-      width: 3px; background: #fff;
-      z-index: 700; cursor: ew-resize;
-      transform: translateX(-50%);
-      box-shadow: 0 0 12px rgba(0,0,0,.5);
+      position: fixed; top: 0; bottom: 0; width: 2px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 0 20px 2px rgba(255,255,255,.25);
+      z-index: 700; cursor: ew-resize; transform: translateX(-50%);
     }
     #slider-knob {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 38px; height: 38px;
-      background: #fff; border-radius: 50%;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 16px rgba(0,0,0,.5);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,.4);
-      font-size: 14px; color: #333; user-select: none;
+      font-size: 15px; color: #222; user-select: none;
     }
 
-    /* ---- Corner label chips ---- */
+    /* ---- CORNER LABELS ---- */
     .corner-label {
-      position: fixed; top: 16px; z-index: 800;
-      font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-      padding: 5px 12px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,.2);
-      backdrop-filter: blur(4px);
+      position: fixed; top: 18px; z-index: 800;
+      font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 20px;
+      backdrop-filter: blur(8px);
     }
-    #label-before { left: 16px; background: rgba(40,40,40,.85); color: #aaa; }
-    #label-after  { right: 16px; background: rgba(28,100,242,.25); color: #93b9ff; border-color: rgba(28,100,242,.4); }
+    #label-before {
+      left: 18px;
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.45);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    #label-after {
+      right: 18px;
+      background: rgba(220,38,38,.18);
+      color: #fca5a5;
+      border: 1px solid rgba(220,38,38,.35);
+    }
 
-    /* ---- Drag hint ---- */
+    /* ---- LEGEND ---- */
+    #legend {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+      z-index: 800; display: flex; gap: 12px; align-items: center;
+      background: rgba(8,9,10,.88); backdrop-filter: blur(10px);
+      padding: 9px 18px; border-radius: 30px;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .chip { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #aaa; letter-spacing: .02em; }
+    .chip-swatch { width: 28px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .chip-div { width: 1px; height: 22px; background: rgba(255,255,255,.1); }
+
+    /* ---- SOURCE NOTE ---- */
+    #source {
+      position: fixed; bottom: 6px; right: 12px; z-index: 800;
+      font-size: 9.5px; color: #333; letter-spacing: .03em;
+    }
+    #source a { color: #444; text-decoration: none; }
+
+    /* ---- DRAG HINT ---- */
     #drag-hint {
-      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
-      z-index: 800; color: #777; font-size: 12px; letter-spacing: .05em;
-      opacity: 0; transition: opacity .6s ease;
-      white-space: nowrap;
+      position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%);
+      z-index: 800; font-size: 11px; color: #555; letter-spacing: .06em;
+      opacity: 0; transition: opacity .8s ease; white-space: nowrap;
     }
     #drag-hint.visible { opacity: 1; }
   </style>
@@ -87,10 +115,15 @@
 <body>
 
   <div id="loader">
-    <div class="load-title">The Flood Line Was Wrong</div>
-    <div class="load-sub">NEC Sea Level Correction &mdash; Boston to DC</div>
+    <div class="load-eyebrow">Minderhoud et al., Nature 2026</div>
+    <div class="load-title">The Flood Line<br>Was Wrong</div>
+    <div class="load-body">
+      Coastal sea levels along the US East Coast are
+      <em>~1 ft higher than assumed</em> in every prior flood risk model.
+      This map shows what that means for the Northeast Corridor.
+    </div>
     <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
-    <div class="load-text" id="load-text">Loading flood data…</div>
+    <div class="load-status" id="load-status">Initialising…</div>
   </div>
 
   <div id="map"></div>
@@ -99,162 +132,148 @@
     <div id="slider-knob">&#x21C4;</div>
   </div>
 
-  <div class="corner-label" id="label-before">Old Assumption</div>
-  <div class="corner-label" id="label-after">Corrected +1 ft Boundary</div>
+  <div class="corner-label" id="label-before">Prior flood model</div>
+  <div class="corner-label" id="label-after">+1 ft correction</div>
 
   <div id="legend">
     <div class="chip">
-      <div class="chip-dot" style="background:#6b90c4;opacity:.8"></div>
-      <span>Previously mapped flood zone (0 ft)</span>
+      <div class="chip-swatch" style="background:#4a7fa5;opacity:.85"></div>
+      <span>Known flood zone (0 ft model)</span>
     </div>
     <div class="chip-div"></div>
     <div class="chip">
-      <div class="chip-dot" style="background:#1c64f2"></div>
-      <span>Hidden risk — missed by old baseline</span>
+      <div class="chip-swatch" style="background:#dc2626"></div>
+      <span>Newly exposed — missed by prior models</span>
     </div>
   </div>
 
-  <div id="drag-hint">← drag to compare →</div>
+  <div id="source">
+    Data: <a href="https://coast.noaa.gov/slr/" target="_blank">NOAA Sea Level Rise</a> &middot; Minderhoud et al., <em>Nature</em> (2026)
+  </div>
+
+  <div id="drag-hint">← drag slider to compare →</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map("map", {
       center: [39.5, -74.8], zoom: 7,
-      zoomControl: true, attributionControl: true
+      zoomControl: false, attributionControl: false
     });
 
+    L.control.attribution({ prefix: false, position: "bottomleft" }).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    // Dark basemap — no labels layer (we add labels separately at top)
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
-      attribution: "© CartoDB © OpenStreetMap contributors",
+      attribution: "© CartoDB © OpenStreetMap",
       subdomains: "abcd", maxZoom: 19
     }).addTo(map);
 
-    // Labels on top (always visible)
+    // Label layer always on top
+    map.createPane("labelPane");
+    map.getPane("labelPane").style.zIndex = 650;
+    map.getPane("labelPane").style.pointerEvents = "none";
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd", maxZoom: 19, pane: "shadowPane"
+      subdomains: "abcd", maxZoom: 19, pane: "labelPane"
     }).addTo(map);
 
     // City markers
-    var cities = [
-      { name: "Boston",       latlng: [42.36, -71.06] },
-      { name: "Providence",   latlng: [41.82, -71.42] },
-      { name: "New Haven",    latlng: [41.31, -72.92] },
-      { name: "New York",     latlng: [40.71, -74.01] },
-      { name: "Philadelphia", latlng: [39.95, -75.17] },
-      { name: "Baltimore",    latlng: [39.29, -76.61] },
-      { name: "Washington DC",latlng: [38.91, -77.04] },
-    ];
-    cities.forEach(function(c) {
-      L.marker(c.latlng, {
-        icon: L.divIcon({ className: "city-label", html: c.name, iconAnchor: [0, 10] }),
-        interactive: false
+    [{name:"Boston",ll:[42.36,-71.06]},{name:"Providence",ll:[41.82,-71.42]},
+     {name:"New Haven",ll:[41.31,-72.92]},{name:"New York",ll:[40.71,-74.01]},
+     {name:"Philadelphia",ll:[39.95,-75.17]},{name:"Baltimore",ll:[39.29,-76.61]},
+     {name:"Washington DC",ll:[38.91,-77.04]}
+    ].forEach(function(c) {
+      L.marker(c.ll, {
+        icon: L.divIcon({ className:"city-label", html:c.name, iconAnchor:[0,8] }),
+        interactive: false, pane: "labelPane"
       }).addTo(map);
     });
 
-    // Create two custom panes
-    map.createPane("beforePane"); // left: old 0ft baseline
-    map.createPane("afterPane");  // right: gap zone (new risk)
-    map.getPane("beforePane").style.zIndex = 350;
-    map.getPane("afterPane").style.zIndex  = 360;
+    // Gap pane — right of slider only
+    map.createPane("gapPane");
+    map.getPane("gapPane").style.zIndex = 400;
+    // Red glow on the gap pane
+    map.getPane("gapPane").style.filter = "drop-shadow(0 0 5px rgba(220,38,38,.45))";
 
-    // Slider logic
-    var mapEl  = document.getElementById("map");
-    var handle = document.getElementById("slider-handle");
-    var loader = document.getElementById("loader");
-    var bar    = document.getElementById("load-bar");
-    var loadTxt= document.getElementById("load-text");
+    var mapEl    = document.getElementById("map");
+    var handle   = document.getElementById("slider-handle");
+    var loader   = document.getElementById("loader");
+    var bar      = document.getElementById("load-bar");
+    var status   = document.getElementById("load-status");
     var dragHint = document.getElementById("drag-hint");
-    var hasUsed = false;
+    var hasUsed  = false;
+    var sliderX  = mapEl.offsetWidth - 40;
 
     function updateSlider(x) {
+      sliderX = x;
       handle.style.left = x + "px";
-      var mapW = mapEl.offsetWidth, mapH = mapEl.offsetHeight;
-      var nw = map.containerPointToLayerPoint([0,   0]);
-      var se = map.containerPointToLayerPoint([mapW, mapH]);
-      // beforePane: only LEFT of slider
-      map.getPane("beforePane").style.clip =
-        "rect(" + nw.y + "px," + (nw.x + x) + "px," + se.y + "px," + nw.x + "px)";
-      // afterPane: only RIGHT of slider
-      map.getPane("afterPane").style.clip =
+      var W = mapEl.offsetWidth, H = mapEl.offsetHeight;
+      var nw = map.containerPointToLayerPoint([0, 0]);
+      var se = map.containerPointToLayerPoint([W, H]);
+      map.getPane("gapPane").style.clip =
         "rect(" + nw.y + "px," + se.x + "px," + se.y + "px," + (nw.x + x) + "px)";
     }
 
-    map.on("move zoom", function() { updateSlider(parseFloat(handle.style.left)); });
+    map.on("move zoom", function() { updateSlider(sliderX); });
 
-    // Drag
     var dragging = false;
-    handle.addEventListener("mousedown",  function(e) { dragging = true; hasUsed = true; dragHint.classList.remove("visible"); e.preventDefault(); });
-    handle.addEventListener("touchstart", function(e) { dragging = true; hasUsed = true; dragHint.classList.remove("visible"); }, { passive: true });
-    window.addEventListener("mousemove",  function(e) { if (dragging) updateSlider(e.clientX); });
-    window.addEventListener("touchmove",  function(e) { if (dragging) updateSlider(e.touches[0].clientX); }, { passive: true });
-    window.addEventListener("mouseup",    function()  { dragging = false; });
-    window.addEventListener("touchend",   function()  { dragging = false; });
+    handle.addEventListener("mousedown",  function(e) { dragging=true; hasUsed=true; dragHint.classList.remove("visible"); e.preventDefault(); });
+    handle.addEventListener("touchstart", function()  { dragging=true; hasUsed=true; dragHint.classList.remove("visible"); }, {passive:true});
+    window.addEventListener("mousemove",  function(e) { if(dragging) updateSlider(e.clientX); });
+    window.addEventListener("touchmove",  function(e) { if(dragging) updateSlider(e.touches[0].clientX); }, {passive:true});
+    window.addEventListener("mouseup",    function()  { dragging=false; });
+    window.addEventListener("touchend",   function()  { dragging=false; });
 
-    function easeInOut(t) { return t < .5 ? 2*t*t : -1+(4-2*t)*t; }
+    function ease(t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
     function animateTo(from, to, dur, done) {
       var t0 = performance.now();
-      function frame(now) {
-        var t = Math.min((now - t0) / dur, 1);
-        updateSlider(from + (to - from) * easeInOut(t));
-        if (t < 1) { requestAnimationFrame(frame); }
-        else if (done) { done(); }
-      }
-      requestAnimationFrame(frame);
+      (function tick(now) {
+        var t = Math.min((now-t0)/dur, 1);
+        updateSlider(from + (to-from)*ease(t));
+        if(t<1) requestAnimationFrame(tick);
+        else if(done) done();
+      })(performance.now());
     }
 
-    // Load both GeoJSON files
-    var baselineLoaded = false, gapLoaded = false;
-    function checkBothLoaded() {
-      if (!baselineLoaded || !gapLoaded) return;
+    var baseOK=false, gapOK=false;
+    function onBothLoaded() {
+      if(!baseOK || !gapOK) return;
       bar.style.width = "100%";
       setTimeout(function() {
         loader.classList.add("hidden");
-        setTimeout(function() { loader.style.display = "none"; }, 500);
-      }, 300);
-      // Start at right edge, sweep to centre
-      updateSlider(mapEl.offsetWidth - 60);
-      setTimeout(function() {
-        animateTo(mapEl.offsetWidth - 60, mapEl.offsetWidth * 0.5, 2400, function() {
-          if (!hasUsed) dragHint.classList.add("visible");
-        });
+        setTimeout(function(){ loader.style.display="none"; }, 600);
       }, 400);
+      // Start far right (all baseline visible), sweep left to centre revealing gap zone
+      updateSlider(mapEl.offsetWidth - 40);
+      setTimeout(function() {
+        animateTo(mapEl.offsetWidth-40, mapEl.offsetWidth*0.5, 2800, function() {
+          if(!hasUsed) dragHint.classList.add("visible");
+        });
+      }, 600);
     }
 
-    // Load baseline (left / before pane)
-    bar.style.width = "20%";
-    loadTxt.textContent = "Loading baseline flood zone…";
+    // BASELINE — always visible, no pane clip
+    status.textContent = "Loading baseline flood zone…";
+    bar.style.width = "10%";
     fetch("baseline_zone.geojson")
-      .then(function(r) { if (!r.ok) throw new Error("baseline HTTP " + r.status); return r.json(); })
-      .then(function(data) {
-        L.geoJSON(data, {
-          pane: "beforePane",
-          style: { fillColor: "#6b90c4", fillOpacity: 0.55, color: "transparent", weight: 0 }
-        }).addTo(map);
-        bar.style.width = "55%";
-        loadTxt.textContent = "Loading corrected boundary…";
-        baselineLoaded = true;
-        checkBothLoaded();
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(d){
+        L.geoJSON(d, { style:{fillColor:"#4a7fa5",fillOpacity:0.45,color:"transparent",weight:0} }).addTo(map);
+        bar.style.width = "52%";
+        status.textContent = "Loading corrected boundary…";
+        baseOK=true; onBothLoaded();
       })
-      .catch(function(err) {
-        loadTxt.textContent = "Error — " + err.message;
-        console.error(err);
-      });
+      .catch(function(e){ status.textContent="Error: "+e.message; console.error(e); });
 
-    // Load gap zone (right / after pane)
+    // GAP ZONE — right of slider, red
     fetch("gap_zone.geojson")
-      .then(function(r) { if (!r.ok) throw new Error("gap HTTP " + r.status); return r.json(); })
-      .then(function(data) {
-        L.geoJSON(data, {
-          pane: "afterPane",
-          style: { fillColor: "#1c64f2", fillOpacity: 0.62, color: "transparent", weight: 0 }
-        }).addTo(map);
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(d){
+        L.geoJSON(d, { pane:"gapPane", style:{fillColor:"#dc2626",fillOpacity:0.72,color:"transparent",weight:0} }).addTo(map);
         bar.style.width = "90%";
-        gapLoaded = true;
-        checkBothLoaded();
+        gapOK=true; onBothLoaded();
       })
-      .catch(function(err) {
-        loadTxt.textContent = "Error — " + err.message;
-        console.error(err);
-      });
+      .catch(function(e){ status.textContent="Error: "+e.message; console.error(e); });
 
   </script>
 </body>
